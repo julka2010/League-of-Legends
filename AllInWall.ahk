@@ -41,7 +41,7 @@ Update:
 	t:=julka_msgbox(0x4,,"Press continue to check for newer version",5000,"Continue","Cancel")
 	if (t = "Cancel")
 		return
-	run,https://github.com/julka2010/League-of-Legends/releases
+	run,https://github.com/julka2010/League-of-Legends/releases/latest
 	return 
 
 Cookie:
