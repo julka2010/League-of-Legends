@@ -12,32 +12,31 @@ bans_GuiManager(o:="",data:="")
 	static Times:=["Monthly","Weekly","Daily"]
 	if (o="n")
 	{
-		o:=" x+0 gPress c9999ff"
+		o:=" x+0 gPress 0x1000"
 		
 		julka_GuiAdd("text","w60 +0x2","Region:")
 		for k, v in Regions
-			Gui, Add, Button,% o,%v%
+			Gui, Add, Radio,% o,%v%
 		
 		julka_GuiAdd("Text","w60 +0x2","Queue:")
 		for k, v in Queues
-			Gui, Add, Button,% o,%v%
+			Gui, Add, Radio,% o,%v%
 			
 		julka_GuiAdd("Text","w60 +0x2","Rating Tier:")
 		for k,v in Tiers
-			Gui, Add, Button,% o,%v%
+			Gui, Add, Radio,% o,%v%
 			
 		julka_GuiAdd("Text","w60 +0x2","Time:")
 		for k,v in Times
-			Gui, Add, Button,% o,%v%
+			Gui, Add, Radio,% o,%v%
 		
 		
 		julka_GuiAdd("Button","xm gGo Default","Go!")
-		AddButton("c9999ff","Blah blah")
 		
-		GuiControl,+cFF0000,% Regions[Region]
-		GuiControl,+cFF0000,% Queues[Queue]
-		GuiControl,+cFF0000,% Tiers[Tier]
-		GuiControl,+cFF0000,% Times[Time]
+		GuiControl,,% Regions[Region],1
+		GuiControl,,% Queues[Queue],1
+		GuiControl,,% Tiers[Tier],1
+		GuiControl,,% Times[Time],1
 		
 		Gui, Show
 		return
@@ -51,29 +50,13 @@ bans_GuiManager(o:="",data:="")
 	if (o="p")
 	{
 		if (k:=julka_InArr(Regions,data))
-		{
-			GuiControl, -0x8000, % Regions[Region]
 			Region:=k
-			GuiControl, +0x8000, % Regions[Region]
-		}
 		else if (k:=julka_InArr(Queues,data))
-		{
-			GuiControl, -0x8000, % Queues[Queue]
 			Queue:=k
-			GuiControl, +0x8000, % Queues[Queue]
-		}
 		else if (k:=julka_InArr(Tiers,data))
-		{
-			GuiControl, -0x8000, % Tiers[Tier]
 			Tier:=k
-			GuiControl, +0x8000, % Tiers[Tier]
-		}
 		else if (k:=julka_InArr(Times,data))
-		{
-			GuiControl, -0x8000, % Times[Time]
 			time:=k
-			GuiControl, +0x8000, % Times[Time]
-		}
 		return	
 	}
 	if (o="set")
@@ -164,17 +147,11 @@ AddButton(o:="",contents:="")
 		Gui,Add,text,%Texto%,% contents
 		GuiControlGet,c,Pos,%ht%
 		GuiControl,Move,%ht%,% "x" cx+3 "y" cy+3
-		Progo:=Progo~=fo "w" ? RegExReplace(Progo,"\sw\S*"," w" cw+6) : Progo " w" cw+6
+		Progo:=Progo~=fo "w" ? RegExReplace(Progo,"\sw\S*"," w" cw+8) : Progo " w" cw+8
 		Progo:=Progo~=fo "x" ? RegExReplace(Progo,"\sx\S*"," x" cx) : Progo " x" cx
 		Progo:=Progo~=fo "h" ? RegExReplace(Progo,"\sh\S*"," h" ch+4) : Progo " h" ch+4
 		Progo:=Progo~=fo "y" ? RegExReplace(Progo,"\sy\S*"," y" cy) : Progo " y" cy
 		Gui,Add,Progress,% Progo,100
-		GuiControl,+hide +disabled,%ht%
-		Texto:=Texto~=fo "w" ? RegExReplace(Texto,"\sw\S*","w" cw+6) : Texto " w" cw+6
-		Texto:=Texto~=fo "x" ? RegExReplace(Texto,"\sx\S*"," x" cx) : Texto " x" cx
-		Texto:=Texto~=fo "h" ? RegExReplace(Texto,"\sh\S*"," h" ch+4) : Texto " h" ch+4
-		Texto:=Texto~=fo "y" ? RegExReplace(Texto,"\sy\S*"," y" cy) : Texto " y" cy
-		Gui,Add,Text,%Texto% center,% contents
 		;GuiControl,Move,%ht%,% "y" cy+100
 	}	
 	else Gui,Add,Button,%o%,% contents
