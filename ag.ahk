@@ -61,7 +61,7 @@ ag_GuiManager(o:="",data:="")
 	{	
 		if ("Cancel"=julka_msgbox(1,,"Currently this feature works only if you play in that game."))
 			return
-		Globals.DownloadActiveGames()
+		Globals.DownloadActiveGame("euw","andrealoth")
 		Globals.DownloadSummoners("p")
 		ag_GuiManager("u")
 		return
