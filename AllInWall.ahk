@@ -160,44 +160,25 @@ class Globals
 		if (region="EUNE")
 			return "EUN1"
 	}
-	DownloadActiveGames()
+	DownloadActiveGame(region,summoner)
 	{
 		;url:=this.specAPI.url("euw","")
 		;this.ActiveGames:=JSON_ToObj(URLDownloadToVar(url))["gameList"]
 		;Globals.DownloadActiveGames()
-			;for k,v in Globals.Summoners
-			;	if (GameID:=Globals.SearchInActiveGame(v["name"]))
-			;		break
-							
-			;Searches for the last log
-			file:=""
-			CreateTime:=""
-			pattern:=Globals.RiotFolder "\Logs\Game - R3d Logs\*.txt"
-			loop, %pattern%
+		
+		url:="http://www.lolking.net/now/" region "/" St_SetCase(RegExReplace(summoner,"\s"),"l")
+		info:=URLDownloadToVar(url)
+		t:=0
+		loop, parse, info, `n, `r
+		{
+			RegExMatch(A_LoopField,"^\s*<a\shref=""\/summoner\/" region "\/\d*"">(?P<name>.*?)<\/a>",O)
+			if Oname
 			{
-				if (A_LoopFileTimeCreated>CreateTime)
-				{
-					file:=A_LoopFileFullPath
-					CreateTime:=A_LoopFileTimeCreated
-				}
+				Globals.Summoners[++t]:=Oname
+				if t=10
+					break
 			}
-			;Gets GameId from that
-			;loop,Read,%file%
-			;	if (t_pos:=InStr(A_LoopReadLine,"GameID:",1))
-			;	{
-			;		GameID:="0x" RegExReplace(SubStr(A_LoopReadLine,t_pos+StrLen("GameID:")),"^[\s0]*")
-			;		break
-			;	}
-			;url:=Globals.specAPI.url("euw","getGameMetaData",GameID,1)
-			;msgbox % url
-			t:=0
-			loop, Read, %file%
-			{
-				if (RegExMatch(A_LoopReadLine,"champion\s\((?P<ch>.*?)\).*team(ID)?\s?(?P<team>\d*).*summonername\s\((?P<name>.*?)\)",o))
-				{
-					Globals.Summoners[++t]:=oname
-				}
-			}
+		}
 	}
 	SearchInActiveGame(summoner)
 	{
