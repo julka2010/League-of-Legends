@@ -3,14 +3,21 @@
 SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 
+#Include <TC_EX>
+#Include <julka>
+#Include <st>
+OnExit, Exit
 Globals.SetUp()
 GuiManager()
 return
 
 GuiManager()
 {
+	;Allowing resizing
+	IniRead,TabChosen,% Globals.Ini,Program State,TabChosen
 	Gui,New,+resize
-	Gui, Add, Tab2,hwndTabHandle -0x400, Ban helper|Main Champion|Active Game Search
+	Gui, Add, Tab2,-Wrap Buttons w384 h288 hwndTabHandle Choose%TabChosen% gTabChange
+		,Ban helper|Main Champion|Active Game Search
 	Gui,Tab,Ban helper
 	bans_GuiManager("n")
 	ButtonsAtTheBottom()
@@ -19,11 +26,9 @@ GuiManager()
 	ButtonsAtTheBottom()
 	Gui,Tab,Active Game Search
 	ag_GuiManager("n")
-	ButtonsAtTheBottom()
+	;ButtonsAtTheBottom()
 	Gui,Tab
-	
-	
-	Gui, Show, Autosize
+	GoSub,TabChange
 }
 
 ButtonsAtTheBottom()
@@ -33,10 +38,10 @@ ButtonsAtTheBottom()
 }
 
 Update:
-	t:=julka_msgbox(0x4,,"Press continue to update to newer version (if such exists)",5000,"Continue","Cancel")
+	t:=julka_msgbox(0x4,,"Press continue to check for newer version",5000,"Continue","Cancel")
 	if (t = "Cancel")
 		return
-	julka_Update("https://www.dropbox.com/s/1v20aq9olwi2vv4/AllinWall.ahk")
+	run,https://github.com/julka2010/League-of-Legends/releases
 	return 
 
 Cookie:
@@ -56,6 +61,7 @@ class Globals
 	static Summoners:={}
 	Static Champions:={}
 	static ActiveGames:={}
+	Static Runes:={}
 	class devAPI
 	{
 		static key:="a250de7d-eb00-46f9-9496-9d3dbff07754"
@@ -162,9 +168,7 @@ class Globals
 			;for k,v in Globals.Summoners
 			;	if (GameID:=Globals.SearchInActiveGame(v["name"]))
 			;		break
-			if ("Cancel"=julka_msgbox(1,,"Currently this feature works only if you play in that game.",500))
-				return
-				
+							
 			;Searches for the last log
 			file:=""
 			CreateTime:=""
@@ -210,8 +214,11 @@ class Globals
 				return k
 		return ""
 	}
-	DownloadSummoners()
+	DownloadSummoners(o:="")
 	{
+		if !o
+			o:="rmsg"
+		o:=RegExReplace(o,"p","rm")	
 		temp:=""
 		tooltip "Searching for summoners"
 		for k,v in this.Summoners
@@ -219,37 +226,45 @@ class Globals
 		temp:=SubStr(temp,1,-1)
 		t:=this.Summoners:=JSON_ToObj(URLDownloadToVar(url:=this.devAPI.url("euw","summoner/by-name",temp)))
 		
-		this.DownloadSummonersPages("runes")
-		this.DownloadSummonersPages("masteries")
+		if (InStr(o,"r"))
+			this.DownloadSummonersPages("runes")
+		if (InStr(o,"m"))	
+			this.DownloadSummonersPages("masteries")
 		
+		if (InStr(o,"s"))
 		for k,v in this.Summoners
 		{
 			tooltip % "Downloading " v["name"] "'s ranked stats"
 			v.Stats:=JSON_ToObj(URLDownloadToVar(this.devAPI.url("euw","stats/by-summoner",v["id"],"ranked")))
-			link:="https://acs.leagueoflegends.com/v1/players?name=" v["name"] "&region=EUW"
-			temp:=JSON_ToObj(URLDownloadToVar(link))
-			v["accountId"]:=temp["accountId"]
-			v["platformId"]:=temp["platformId"]
-			b:=0,e:=15
-			link:="https://acs.leagueoflegends.com/v1/stats/player_history/" v["platformId"] "/" v["accountId"] "?begIndex=" b "&endIndex=" e "&queue=4"
-			v["Games"]:=JSON_ToObj(URLDownloadToVar(link))["games"]["games"]
-			for key, value in v["Games"]
-				value.Remove("participantIdentities")
-			v["Games"].full:=v["Games"].full ? v["Games"].full+e-b : e-b
+			if (InStr(o,"g"))
+			{
+				link:="https://acs.leagueoflegends.com/v1/players?name=" v["name"] "&region=EUW"
+				temp:=JSON_ToObj(URLDownloadToVar(link))
+				v["	accountId"]:=temp["accountId"]
+				v["platformId"]:=temp["platformId"]
+				b:=0,e:=15
+				link:="https://acs.leagueoflegends.com/v1/stats/player_history/" v["platformId"] "/" v["accountId"] "?begIndex=" b "&endIndex=" e "&queue=4"
+				v["Games"]:=JSON_ToObj(URLDownloadToVar(link))["games"]["games"]
+				for key, value in v["Games"]
+					value.Remove("participantIdentities")
+				v["Games"].full:=v["Games"].full ? v["Games"].full+e-b : e-b
+			}	
 		}
 		tooltip
 		return
 	}
 	DownloadSummonersPages(p_type)
 	{
-		tooltip "Downloading " p_type " pages"
+		tooltip % "Downloading " p_type " pages"
 		temp:=""
 		for k,v in this.Summoners
 			temp.=v["id"] ? v["id"] "," : ""
 		temp:=SubStr(temp,1,-1)
 		temp:=JSON_ToObj(URLDownloadToVar(url:=this.devAPI.url("euw","summoner",temp,p_type)))
 		for k,v in temp
-			this.Summoners[this.IDtoKey(v["summonerId"])][p_type]:=v["pages"]
+		{
+			this.Summoners[this.IDtoKey(v["summonerId"])][p_type]:=v["pages"]		
+		}
 	}
 	DownloadChampions()
 	{
@@ -266,19 +281,26 @@ class Globals
 			this.Champions.data[k]:=v
 		t:=""
 	}
+	DownloadRunes()
+	{
+		url:=this.devAPI.url("euw","static-data/rune","")
+		this.Runes:=JSON_ToObj(URLDownloadToVar(url))["data"]
+		return
+	}
 	SetUp()
 	{
 		;Reads and updates as needed the configuration file
+		if !(fileExist("config.ini"))
+			IniWrite,v0.6.2.2,% this.Ini,Static,version
 		
 		;Reads/Gets path of League of Legends folder
 		IniRead,temp,% this.Ini,Static,RiotFolderPath
-		if temp in ,ERROR
+		While (!FileExist(temp "\lol.launcher.exe"))
 		{
 			FileSelectFolder,temp,,2,Select League of Legends folder
-			this.RiotFolder:=temp
-			IniWrite,% this.RiotFolder,% this.Ini,Static,RiotFolderPath
+			IniWrite,% temp,% this.Ini,Static,RiotFolderPath
 		}
-		else this.RiotFolder:=temp
+		this.RiotFolder:=temp
 		
 		;Reads/Gets supported League of Legends regions
 		IniRead,temp,% this.Ini,Regions
@@ -314,10 +336,10 @@ class Globals
 				this.DevAPI[t[1]]:=t[2]
 			}
 		
-		IniRead,temp,% this.Ini,Bans
+		IniRead,temp,% this.Ini,Program State
 		if temp not in ,ERROR
 			bans_GuiManager("set",temp)
-		IniRead,temp,% this.Ini,Main Champion,Summoners
+		IniRead,temp,% this.Ini,Program State,Summoners
 		if temp not in ,ERROR
 		{
 			loop,Parse,temp,csv
@@ -327,6 +349,8 @@ class Globals
 		;Downloads static data from the internet
 		tooltip Downloading champions data
 		this.DownloadChampions()
+		tooltip Downloading runes data
+		this.DownloadRunes()
 		tooltip
 	}
 }
@@ -345,6 +369,28 @@ class Champion
 		this.BanWorthy:=(this.Ratio*2-1)*this.Popularity
 	}
 }
+
+TabChange:
+	Gui,Tab,% TC_EX_GetSel(TabHandle)
+return	
+
+Exit:
+	tab:=TC_EX_GetSel(TabHandle)
+	IniWrite,%tab%,% globals.Ini,Program state,TabChosen
+	if (summoner:=julka_FirstKey(Globals.Summoners))
+	{
+		IniRead,previous,% Globals.Ini,Program State,Summoners
+		for k,v in Globals.Summoners
+			if (v["name"]=previous)
+			{
+				previous:=1
+				break
+			}
+		if (previous!=1)	
+			IniWrite,% Globals.Summoners[summoner]["name"]
+				,% Globals.ini,Program State,Summoners
+	}		
+	exitapp
 
 F5::reload
 return
