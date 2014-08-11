@@ -1,8 +1,3 @@
-#NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
-; #Warn  ; Enable warnings to assist with detecting common errors.
-SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
-SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
-
 bans_GuiManager(o:="",data:="")
 {
 	static Region:=1, Queue:=1, Tier:=1, Time:=1
@@ -12,26 +7,26 @@ bans_GuiManager(o:="",data:="")
 	static Times:=["Monthly","Weekly","Daily"]
 	if (o="n")
 	{
-		o:=" x+0 gPress 0x1000"
+		o:=" xs y+0 gPress 0x1000 w60 center h20"
 		
-		julka_GuiAdd("text","w60 +0x2","Region:")
+		Gui,Add,text,% "w60 section +0x1",% "Region:"
 		for k, v in Regions
 			Gui, Add, Radio,% o,%v%
 		
-		julka_GuiAdd("Text","w60 +0x2","Queue:")
+		Gui,Add,Text,% "w60 x+20 ys section +0x1",% "Queue:"
 		for k, v in Queues
 			Gui, Add, Radio,% o,%v%
 			
-		julka_GuiAdd("Text","w60 +0x2","Rating Tier:")
+		Gui,Add,Text,% "w60 x+20 ys section +0x1",% "Rating Tier:"
 		for k,v in Tiers
 			Gui, Add, Radio,% o,%v%
 			
-		julka_GuiAdd("Text","w60 +0x2","Time:")
+		Gui,Add,Text,% "w60 x+20 ys section +0x1",% "Time:"
 		for k,v in Times
 			Gui, Add, Radio,% o,%v%
 		
-		
-		julka_GuiAdd("Button","xm gGo Default","Go!")
+		GuiControlGet,c,Pos,% Regions[julka_LastKey(Regions)]
+		Gui,Add,Button,% "gGo Default w60 xs" " y" cy,% "Go!"
 		
 		GuiControl,,% Regions[Region],1
 		GuiControl,,% Queues[Queue],1
@@ -80,6 +75,7 @@ bans_GuiManager(o:="",data:="")
 	return
 
 	Go:
+		Globals.WorkingRegion:=Regions[Region]
 		IniWrite,% Regions[Region],% Globals.Ini,Program State,Region
 		IniWrite,% Queues[Queue],% Globals.Ini,Program State,Queues
 		IniWrite,% Times[Time],% Globals.Ini,Program State,Time
@@ -127,33 +123,4 @@ BanList(link,o:="")
 	}
 
 	msgbox % List
-}
-
-AddButton(o:="",contents:="")
-{
-	static fo:="^(\w*?\s)*"
-	;Progress options
-	;Progress does need var or hwnd assosiated with it
-	;Progress cannot have g-label
-	;It is also disabled to not interfere with text
-	Progo:=RegExReplace(o,fo "(v.*?\s)|(hwnd.*?\s)|(g.*?\s)") " disabled hwndhP"
-	Texto:=RegExReplace(o,fo "c(0x)?[A-Fa-f\d]{6,8}") " BackGroundTrans"
-	Texto.=o~="i)\shwnd" ? "" : " hwndht"
-	if (!RegExMatch(o,fo "g"))
-		if IsLabel(" gButton" RegExReplace(contents,"\s"))
-			Texto.=" gButton" RegExReplace(contents,"\s")
-	if (RegExMatch(Progo,"c(0x)?[A-Fa-f\d]{6,8}"))
-	{
-		Gui,Add,text,%Texto%,% contents
-		GuiControlGet,c,Pos,%ht%
-		GuiControl,Move,%ht%,% "x" cx+3 "y" cy+3
-		Progo:=Progo~=fo "w" ? RegExReplace(Progo,"\sw\S*"," w" cw+8) : Progo " w" cw+8
-		Progo:=Progo~=fo "x" ? RegExReplace(Progo,"\sx\S*"," x" cx) : Progo " x" cx
-		Progo:=Progo~=fo "h" ? RegExReplace(Progo,"\sh\S*"," h" ch+4) : Progo " h" ch+4
-		Progo:=Progo~=fo "y" ? RegExReplace(Progo,"\sy\S*"," y" cy) : Progo " y" cy
-		Gui,Add,Progress,% Progo,100
-		;GuiControl,Move,%ht%,% "y" cy+100
-	}	
-	else Gui,Add,Button,%o%,% contents
-	return hp "`n" ht
 }
