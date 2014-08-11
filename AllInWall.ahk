@@ -1,12 +1,15 @@
 #NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
-; #Warn  ; Enable warnings to assist with detecting common errors.
+;#Warn  ; Enable warnings to assist with detecting common errors.
 SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
+#SingleInstance Force
 
 #Include <TC_EX>
 #Include <julka>
 #Include <st>
 OnExit, Exit
+SetTitleMatchMode,2
+OnMessage(0x2000,"MessageMonitor")
 Globals.SetUp()
 GuiManager()
 return
@@ -17,15 +20,15 @@ GuiManager()
 	IniRead,TabChosen,% Globals.Ini,Program State,TabChosen
 	Gui,New,+resize
 	Gui, Add, Tab2,-Wrap Buttons w384 h288 hwndTabHandle Choose%TabChosen% gTabChange
-		,Ban helper|Main Champion|Active Game Search
+		,Ban helper|Main Champion|Active Game Search|Useless
 	Gui,Tab,Ban helper
 	bans_GuiManager("n")
-	ButtonsAtTheBottom()
 	Gui,Tab,Main Champion
-	mcn_GuiManager("nT")
-	ButtonsAtTheBottom()
+	mcn_GuiManager("nT",globals.WorkingSummoner)
 	Gui,Tab,Active Game Search
-	ag_GuiManager("n")
+	ag_GuiManager("n",globals.WorkingSummoner)
+	Gui,Tab,Useless
+	ButtonsAtTheBottom()
 	;ButtonsAtTheBottom()
 	Gui,Tab
 	GoSub,TabChange
@@ -57,11 +60,15 @@ Cookie:
 class Globals
 {
 	static Ini:="Config.ini"
+	static WorkingSummoner
 	static Regions:={}
 	static Summoners:={}
 	Static Champions:={}
 	static ActiveGames:={}
 	Static Runes:={}
+	Static Masteries:={}
+	Static MasteryTrees:={}
+	static PID
 	class devAPI
 	{
 		static key:="a250de7d-eb00-46f9-9496-9d3dbff07754"
@@ -82,7 +89,7 @@ class Globals
 			StringLower,region,region
 			return region ".api.pvp.net"
 		}
-		url(region,type,query,command:="")
+		url(region,type,query,command:="",AddData:="")
 		{
 			Sleep % this.SleepCheck()
 			if (t_pos:=InStr(type,"/"))
@@ -93,6 +100,7 @@ class Globals
 			else extra:=""
 			query.=command ? "/" : ""
 			ep:=type="static-data" ? this.Endpoint("global") : this.Endpoint(region)
+			AddData.= AddData ? "&" : ""
 			;if (type="Summoner")
 			;	msgbox % type "`n" this.version(type)
 			if (type="static-data")
@@ -101,7 +109,8 @@ class Globals
 					. "?api_key=" this.key
 			else
 				result:="https://" this.Endpoint(region) "/api/lol/" region "/v" this.version(type)
-					. "/" type "/" extra . query . command "?api_key=" this.key		
+					. "/" type "/" extra . query . command "?"
+					. AddData "api_key=" this.key		
 			return result
 		}
 	}
@@ -166,12 +175,14 @@ class Globals
 		;this.ActiveGames:=JSON_ToObj(URLDownloadToVar(url))["gameList"]
 		;Globals.DownloadActiveGames()
 		
-		url:="http://www.lolking.net/now/" region "/" St_SetCase(RegExReplace(summoner,"\s"),"l")
+		this.WorkingSummoner:=summoner
+		
+		url:="http://www.lolking.net/now/" St_SetCase(region,"l") "/" St_SetCase(RegExReplace(summoner,"\s"),"l")
 		info:=URLDownloadToVar(url)
 		t:=0
 		loop, parse, info, `n, `r
 		{
-			RegExMatch(A_LoopField,"^\s*<a\shref=""\/summoner\/" region "\/\d*"">(?P<name>.*?)<\/a>",O)
+			RegExMatch(A_LoopField,"^\s*<a\shref=""\/summoner\/" St_SetCase(region,"l") "\/\d*"">(?P<name>.*?)<\/a>",O)
 			if Oname
 			{
 				Globals.Summoners[++t]:=Oname
@@ -205,7 +216,13 @@ class Globals
 		for k,v in this.Summoners
 			temp.=v ? InStr(v,"?") ? "" : v "," : ""
 		temp:=SubStr(temp,1,-1)
-		t:=this.Summoners:=JSON_ToObj(URLDownloadToVar(url:=this.devAPI.url("euw","summoner/by-name",temp)))
+		this.WorkingSummoner:=StrSplit(temp,",")[1]
+		w:=this.WorkingSummoner l:="Summoner"
+		StrPutVar(this.WorkingSummoner,w,A_isUnicode ? "UTF-16" : "ANSI-8")
+		StrPutVar("Summoner",l,A_isUnicode ? "UTF-16" : "ANSI-8")
+		PostMessage, 0x2000,&w,&l,,% A_ScriptName
+		msgbox Posted
+		this.Summoners:=JSON_ToObj(URLDownloadToVar(url:=this.devAPI.url("euw","summoner/by-name",temp)))
 		
 		if (InStr(o,"r"))
 			this.DownloadSummonersPages("runes")
@@ -213,24 +230,24 @@ class Globals
 			this.DownloadSummonersPages("masteries")
 		
 		if (InStr(o,"s"))
-		for k,v in this.Summoners
-		{
-			tooltip % "Downloading " v["name"] "'s ranked stats"
-			v.Stats:=JSON_ToObj(URLDownloadToVar(this.devAPI.url("euw","stats/by-summoner",v["id"],"ranked")))
-			if (InStr(o,"g"))
+			for k,v in this.Summoners
 			{
-				link:="https://acs.leagueoflegends.com/v1/players?name=" v["name"] "&region=EUW"
-				temp:=JSON_ToObj(URLDownloadToVar(link))
-				v["	accountId"]:=temp["accountId"]
-				v["platformId"]:=temp["platformId"]
-				b:=0,e:=15
-				link:="https://acs.leagueoflegends.com/v1/stats/player_history/" v["platformId"] "/" v["accountId"] "?begIndex=" b "&endIndex=" e "&queue=4"
-				v["Games"]:=JSON_ToObj(URLDownloadToVar(link))["games"]["games"]
-				for key, value in v["Games"]
-					value.Remove("participantIdentities")
-				v["Games"].full:=v["Games"].full ? v["Games"].full+e-b : e-b
-			}	
-		}
+				tooltip % "Downloading " v["name"] "'s ranked stats"
+				v.Stats:=JSON_ToObj(URLDownloadToVar(this.devAPI.url("euw","stats/by-summoner",v["id"],"ranked")))
+				if (InStr(o,"g"))
+				{
+					link:="https://acs.leagueoflegends.com/v1/players?name=" v["name"] "&region=EUW"
+					temp:=JSON_ToObj(URLDownloadToVar(link))
+					v["	accountId"]:=temp["accountId"]
+					v["platformId"]:=temp["platformId"]
+					b:=0,e:=15
+					link:="https://acs.leagueoflegends.com/v1/stats/player_history/" v["platformId"] "/" v["accountId"] "?begIndex=" b "&endIndex=" e "&queue=4"
+					v["Games"]:=JSON_ToObj(URLDownloadToVar(link))["games"]["games"]
+					for key, value in v["Games"]
+						value.Remove("participantIdentities")
+					v["Games"].full:=v["Games"].full ? v["Games"].full+e-b : e-b
+				}	
+			}
 		tooltip
 		return
 	}
@@ -268,8 +285,16 @@ class Globals
 		this.Runes:=JSON_ToObj(URLDownloadToVar(url))["data"]
 		return
 	}
+	DownloadMasteries()
+	{
+		url:=this.devAPI.url("euw","static-data/mastery","")
+		this.Runes:=JSON_ToObj(URLDownloadToVar(url))["data"]
+		return
+	}
 	SetUp()
 	{
+		this.PID := DllCall("GetCurrentProcessId")
+		
 		;Reads and updates as needed the configuration file
 		if !(fileExist("config.ini"))
 			IniWrite,v0.6.2.2,% this.Ini,Static,version
@@ -323,17 +348,28 @@ class Globals
 		IniRead,temp,% this.Ini,Program State,Summoners
 		if temp not in ,ERROR
 		{
-			loop,Parse,temp,csv
-				Globals.Summoners[a_index]:=A_LoopField
+			this.WorkingSummoner:=temp
 		}
 		
 		;Downloads static data from the internet
 		tooltip Downloading champions data
-		this.DownloadChampions()
+		;this.DownloadChampions()
 		tooltip Downloading runes data
-		this.DownloadRunes()
+		;this.DownloadRunes()
+		tooltip Downloading masteries data
+		;this.DownloadMasteries()
 		tooltip
 	}
+}
+
+MessageMonitor(wParam,lParam,msg,control)
+{
+	if (msg=0x2000)
+	{
+		msgbox % StrGet(lParam) "`n" StrGet(wParam)
+		mcn_GuiManager("Set" StrGet(lParam), StrGet(wParam))
+		ag_GuiManager("Set" StrGet(lParam), StrGet(wParam))
+	}	
 }
 
 class Champion
@@ -358,18 +394,10 @@ return
 Exit:
 	tab:=TC_EX_GetSel(TabHandle)
 	IniWrite,%tab%,% globals.Ini,Program state,TabChosen
-	if (summoner:=julka_FirstKey(Globals.Summoners))
+	if (globals.WorkingSummoner)
 	{
-		IniRead,previous,% Globals.Ini,Program State,Summoners
-		for k,v in Globals.Summoners
-			if (v["name"]=previous)
-			{
-				previous:=1
-				break
-			}
-		if (previous!=1)	
-			IniWrite,% Globals.Summoners[summoner]["name"]
-				,% Globals.ini,Program State,Summoners
+		IniWrite,% Globals.WorkingSummoner
+			,% Globals.ini,Program State,Summoners
 	}		
 	exitapp
 
