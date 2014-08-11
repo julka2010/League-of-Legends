@@ -94,22 +94,21 @@ class Globals
 			Sleep % this.SleepCheck()
 			if (t_pos:=InStr(type,"/"))
 			{
-				extra:=SubStr(type,t_pos+1) (query ? "/" : "")
+				extra:="/" SubStr(type,t_pos+1) 
 				type:=SubStr(type,1,t_pos-1)
 			}
 			else extra:=""
-			query.=command ? "/" : ""
+			query:=query ? "/" query : ""
+			command:=command ? "/" command : ""
 			ep:=type="static-data" ? this.Endpoint("global") : this.Endpoint(region)
 			AddData.= AddData ? "&" : ""
-			;if (type="Summoner")
-			;	msgbox % type "`n" this.version(type)
 			if (type="static-data")
 				result:="https://" this.Endpoint("global") "/api/lol/" type "/" region 
-					. "/v" this.version(type) "/" extra . query . command
-					. "?api_key=" this.key
+					. "/v" this.version(type) extra . query . command
+					. "?" AddData "api_key=" this.key
 			else
 				result:="https://" this.Endpoint(region) "/api/lol/" region "/v" this.version(type)
-					. "/" type "/" extra . query . command "?"
+					. "/" type . extra . query . command "?"
 					. AddData "api_key=" this.key		
 			return result
 		}
@@ -179,6 +178,7 @@ class Globals
 		
 		url:="http://www.lolking.net/now/" St_SetCase(region,"l") "/" St_SetCase(RegExReplace(summoner,"\s"),"l")
 		info:=URLDownloadToVar(url)
+		msgbox % info
 		t:=0
 		loop, parse, info, `n, `r
 		{
@@ -190,6 +190,7 @@ class Globals
 					break
 			}
 		}
+		msgbox % st_PrintArr(Globals.Summoners)
 	}
 	SearchInActiveGame(summoner)
 	{
@@ -214,14 +215,14 @@ class Globals
 		temp:=""
 		tooltip "Searching for summoners"
 		for k,v in this.Summoners
-			temp.=v ? InStr(v,"?") ? "" : v "," : ""
+			temp.=v ? InStr(v,"?±") ? "" : v "," : ""
 		temp:=SubStr(temp,1,-1)
 		this.WorkingSummoner:=StrSplit(temp,",")[1]
 		w:=this.WorkingSummoner l:="Summoner"
 		StrPutVar(this.WorkingSummoner,w,A_isUnicode ? "UTF-16" : "ANSI-8")
 		StrPutVar("Summoner",l,A_isUnicode ? "UTF-16" : "ANSI-8")
 		PostMessage, 0x2000,&w,&l,,% A_ScriptName
-		msgbox Posted
+		;msgbox Posted
 		this.Summoners:=JSON_ToObj(URLDownloadToVar(url:=this.devAPI.url("euw","summoner/by-name",temp)))
 		
 		if (InStr(o,"r"))
@@ -238,11 +239,12 @@ class Globals
 				{
 					link:="https://acs.leagueoflegends.com/v1/players?name=" v["name"] "&region=EUW"
 					temp:=JSON_ToObj(URLDownloadToVar(link))
-					v["	accountId"]:=temp["accountId"]
+					v["accountId"]:=temp["accountId"]
 					v["platformId"]:=temp["platformId"]
 					b:=0,e:=15
 					link:="https://acs.leagueoflegends.com/v1/stats/player_history/" v["platformId"] "/" v["accountId"] "?begIndex=" b "&endIndex=" e "&queue=4"
 					v["Games"]:=JSON_ToObj(URLDownloadToVar(link))["games"]["games"]
+					
 					for key, value in v["Games"]
 						value.Remove("participantIdentities")
 					v["Games"].full:=v["Games"].full ? v["Games"].full+e-b : e-b
@@ -287,8 +289,10 @@ class Globals
 	}
 	DownloadMasteries()
 	{
-		url:=this.devAPI.url("euw","static-data/mastery","")
-		this.Runes:=JSON_ToObj(URLDownloadToVar(url))["data"]
+		url:=this.devAPI.url("euw","static-data/mastery","",,"masteryListData=tree")
+		temp:=JSON_ToObj(URLDownloadToVar(url))
+		this.Masteries:=temp["data"]
+		this.MasteryTrees:=temp["tree"]
 		return
 	}
 	SetUp()
@@ -353,11 +357,11 @@ class Globals
 		
 		;Downloads static data from the internet
 		tooltip Downloading champions data
-		;this.DownloadChampions()
+		this.DownloadChampions()
 		tooltip Downloading runes data
-		;this.DownloadRunes()
+		this.DownloadRunes()
 		tooltip Downloading masteries data
-		;this.DownloadMasteries()
+		this.DownloadMasteries()
 		tooltip
 	}
 }
@@ -366,7 +370,7 @@ MessageMonitor(wParam,lParam,msg,control)
 {
 	if (msg=0x2000)
 	{
-		msgbox % StrGet(lParam) "`n" StrGet(wParam)
+		;msgbox % StrGet(lParam) "`n" StrGet(wParam)
 		mcn_GuiManager("Set" StrGet(lParam), StrGet(wParam))
 		ag_GuiManager("Set" StrGet(lParam), StrGet(wParam))
 	}	
