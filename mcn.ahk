@@ -1,18 +1,15 @@
-#NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
-; #Warn  ; Enable warnings to assist with detecting common errors.
-SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
-SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
-
 mcn_GuiManager(o:="",data:="")
 {
 	static SummonerHwnds:={}
 	static ActiveGameSearch:=0
+	OnMessage(0x2000,"mcnMessageMonitor")
 	if (o="nT")
 	{
-		;Gui,NN:New
+		if (!IsObject(data))
+			data:=[data]
 		loop,5
 		{
-			Gui,Add,Edit,w150 hWndhWnd,% Globals.Summoners[a_index]
+			Gui,Add,Edit,w150 hWndhWnd, % data[a_index]
 			SummonerHwnds[a_index]:=hWnd
 		}	
 		Gui,Add,Button,w150 gGoGoGo default,Go
@@ -39,12 +36,27 @@ mcn_GuiManager(o:="",data:="")
 		Gui,Show
 		return
 	}
-	
+	else if (t_pos:=InStr(o,"set"))
+	{
+		o:=SubStr(o,t_pos+3)
+		if (o="Summoner")
+			if (IsObject(data))
+			{
+				for k,v in data
+					if (!IsObject(v))
+						GuiControl,,% SummonerHwnds[a_index],% v
+			}
+			else
+				GuiControl,,% SummonerHwnds[1],% data
+		return	
+	}
+	return
 	GoGoGo:
 	{
 		mcn_GuiManager("nS")
 		Globals.DownloadSummoners("sg")
 		Info("gwl")
+		return
 	}
 	
 	LVGuiSize:
@@ -53,8 +65,6 @@ mcn_GuiManager(o:="",data:="")
 		return
 	}
 }
-
-
 
 Guess(summoner:="")
 {
